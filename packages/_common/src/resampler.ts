@@ -19,41 +19,20 @@ export class Resampler {
   }
 
   process = (audioFrame: Float32Array): Float32Array[] => {
-    const outputFrames: Array<Float32Array> = []
+    const outputFrames: Float32Array[] = [];
+    const maxChunkSize = Math.floor(this.options.targetFrameSize * this.options.targetSampleRate / this.options.nativeSampleRate);
 
-    for (const sample of audioFrame) {
-      this.inputBuffer.push(sample)
-    }
+    for (let i = 0; i < audioFrame.length; i += maxChunkSize) {
+      const chunk = audioFrame.subarray(i, i + maxChunkSize);
+      this.inputBuffer = this.inputBuffer.concat(Array.from(chunk));
 
-    while (
-      (this.inputBuffer.length * this.options.targetSampleRate) /
-        this.options.nativeSampleRate >
-      this.options.targetFrameSize
-    ) {
-      const outputFrame = new Float32Array(this.options.targetFrameSize)
-      let outputIndex = 0
-      let inputIndex = 0
-      while (outputIndex < this.options.targetFrameSize) {
-        let sum = 0
-        let num = 0
-        while (
-          inputIndex <
-          Math.min(
-            this.inputBuffer.length,
-            ((outputIndex + 1) * this.options.nativeSampleRate) /
-              this.options.targetSampleRate
-          )
-        ) {
-          sum += this.inputBuffer[inputIndex] as number
-          num++
-          inputIndex++
-        }
-        outputFrame[outputIndex] = sum / num
-        outputIndex++
+      while (this.inputBuffer.length >= this.options.targetFrameSize) {
+        const outputFrame = this.inputBuffer.slice(0, this.options.targetFrameSize);
+        this.inputBuffer = this.inputBuffer.slice(this.options.targetFrameSize);
+        outputFrames.push(outputFrame as any);
       }
-      this.inputBuffer = this.inputBuffer.slice(inputIndex)
-      outputFrames.push(outputFrame)
     }
-    return outputFrames
+
+    return outputFrames;
   }
 }
